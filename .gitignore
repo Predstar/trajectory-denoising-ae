@@ -1,0 +1,12 @@
+# Regenerable data and run outputs
+data/
+results/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
