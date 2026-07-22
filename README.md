@@ -19,16 +19,12 @@ The project includes:
 - An evaluation and visualization suite: loss curves, reconstruction overlays,
   per-axis time series, residual plots, MSE distribution, SNR improvement,
   PCA of the latent space, and encoder weight heatmaps.
-- Model inspection tooling: `torchinfo` layer summaries, `torchviz`
-  computation graphs, and TorchScript export for viewing in
-  [Netron](https://netron.app).
 - Ablation scripts sweeping the bottleneck (embedding) size and the noise
   level to characterize the capacity/noise-robustness tradeoff.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full module-by-module
 breakdown and the mathematical model. See the included PDFs
-(`AE_analysis.pdf`, `AE_Mathematical_Foundations.pdf`,
-`AE_Generic_Mathematical_Reference.pdf`) for a written analysis of
+(`AE_analysis.pdf`, `AE_Mathematical_Foundations.pdf`) for a written analysis of
 experimental results.
 
 ## Technology Stack
