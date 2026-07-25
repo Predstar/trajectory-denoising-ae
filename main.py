@@ -15,7 +15,7 @@ from train import train_model, evaluate_model
 from visualize import (
     plot_clean_noisy_reconstructed, plot_training_curve,
     plot_per_axis_timeseries, plot_residuals, plot_latent_space_pca,
-    plot_mse_histogram, plot_snr_improvement, plot_encoder_weight_heatmap,
+    plot_mse_histogram, plot_snr_improvement, plot_trajectory_overlay,
 )
 from animate_preview import animate_sample
 
@@ -73,6 +73,9 @@ def main():
     np.save(os.path.join(DATA_DIR, "noisy_trajectories.npy"), noisy)
     print(f"Saved datasets to {DATA_DIR}/clean_trajectories.npy and {DATA_DIR}/noisy_trajectories.npy")
 
+    # 1c. Overlay a sample of clean trajectories to show the dataset's spread.
+    plot_trajectory_overlay(clean, seed=0)
+    save("trajectory_overlay.png")
 
     # 2. Flatten each (T, 3) trajectory into a single (T*3,) vector so it can
     #    be fed into the fully-connected autoencoder, and convert to tensors.
@@ -186,12 +189,8 @@ def main():
     plot_latent_space_pca(test_embeddings, color_by=mean_radius, color_label='mean radius')
     save("latent_space_pca.png")
 
-    # 8f. Encoder first-layer weight heatmap.
-    plot_encoder_weight_heatmap(model)
-    save("encoder_weights.png")
-
     print("Saved per_axis_timeseries.png, residuals.png, mse_histogram.png, "
-          "snr_improvement.png, latent_space_pca.png, encoder_weights.png")
+          "snr_improvement.png, latent_space_pca.png")
 
     # 9. Animate the same sample trajectory (clean vs noisy vs reconstructed) as an MP4,
     #    into the run folder. sample_idx indexes the full dataset for clean/noisy;
@@ -201,10 +200,10 @@ def main():
                    out_path=anim_path)
 
     # 10. Open all generated plots/animation with the OS default viewer.
-    for name in ("loss_curve.png", "reconstruction.png",
+    for name in ("trajectory_overlay.png", "loss_curve.png", "reconstruction.png",
                  "reconstruction_worst.png", "per_axis_timeseries.png", "residuals.png",
                  "mse_histogram.png", "snr_improvement.png", "latent_space_pca.png",
-                 "encoder_weights.png", "trajectory_anim.mp4"):
+                 "trajectory_anim.mp4"):
         os.startfile(os.path.join(run_dir, name))
 
 

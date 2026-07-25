@@ -183,32 +183,6 @@ def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0):
     return ax
 
 
-def plot_encoder_weight_heatmap(model):
-    """Visualize the first encoder layer's weights as a heatmap.
-
-    Rows are hidden units, columns are flattened (timestep * 3) input
-    features; reshaping the column axis into (T, 3) blocks shows which
-    timesteps/axes each hidden unit attends to most.
-
-    Args:
-        model: TrajectoryAE instance.
-
-    Returns:
-        the Axes used.
-    """
-    first_linear = model.encoder[0]
-    weights = first_linear.weight.detach().cpu().numpy()  # (hidden, T*3)
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    vmax = np.abs(weights).max()
-    im = ax.imshow(weights, aspect='auto', cmap='RdBu_r', vmin=-vmax, vmax=vmax)
-    ax.set_xlabel('input feature (timestep * 3 + axis)')
-    ax.set_ylabel('hidden unit')
-    ax.set_title('Encoder first-layer weights')
-    fig.colorbar(im, ax=ax, label='weight')
-    return ax
-
-
 def plot_trajectory_overlay(trajectories, n_samples=200, seed=None):
     """Overlay many trajectories in one static 3D plot to show dataset spread.
 
