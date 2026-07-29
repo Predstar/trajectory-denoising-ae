@@ -30,7 +30,7 @@ to sweep one hyperparameter at a time.
 | `noise.py` | Additive i.i.d. Gaussian noise injection. |
 | `model.py` | `TrajectoryAE` — the fully-connected denoising autoencoder (`nn.Module`). |
 | `train.py` | Training loop (`train_model`) with early stopping, and evaluation (`evaluate_model`). |
-| `visualize.py` | All static plotting functions (loss curves, reconstruction overlays, residuals, MSE histogram, SNR bars, PCA of latent space, encoder weight heatmap, ablation plots). |
+| `visualize.py` | All static plotting functions (loss curves, reconstruction overlays, residuals, MSE histogram, SNR bars, PCA of latent space, ablation plots). |
 | `animate_preview.py` | Renders one sample trajectory (clean/noisy/reconstructed) as an MP4 animation. |
 | `bottleneck_ablation.py` | Standalone sweep of `EMBEDDING_SIZE`, retraining the model at each size, to characterize the capacity/reconstruction-quality tradeoff. |
 | `noise_sweep.py` | Standalone sweep of `NOISE_SIGMA`, retraining the model at each level, to characterize noise robustness. |
@@ -106,14 +106,10 @@ For each run, `main.py`:
 3. Builds `TrajectoryAE`, prints a `torchinfo` layer-by-layer summary.
 4. Trains via `train_model` (with early stopping).
 5. Evaluates on the held-out test set, saves:
-   - `computation_graph.png` — the forward-pass computation graph via
-     `torchviz`.
-   - `model.pt` — a TorchScript-traced export of the trained model, viewable
-     in [Netron](https://netron.app).
    - `reconstructed_trajectories.npy` — denoised test-set output.
 6. Generates and saves all evaluation plots via `visualize.py` (loss curve,
    reconstruction overlays, per-axis time series, residuals, MSE histogram,
-   SNR improvement, latent-space PCA, encoder weight heatmap).
+   SNR improvement, latent-space PCA).
 7. Renders an MP4 animation of one sample trajectory via
    `animate_preview.py`.
 

@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trajectory-AE Pipeline &amp; Hyperparameters</title>
+<style>
+@font-face {
+  font-family: 'JBM';
+  src: local('JetBrains Mono');
+  font-weight: 400 700;
+}
+
+:root {
+  --bg: #fafaf8;
+  --panel: #ffffff;
+  --ink: #1c1d1a;
+  --muted: #6b6d66;
+  --line: #d8d6cf;
+  --accent: #2a5d8f;
+  --accent-soft: #e4edf5;
+  --warm: #b5562f;
+  --warm-soft: #f6e7e0;
+  --code-bg: #f0efe9;
+  --shadow: rgba(28,29,26,0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15161a;
+    --panel: #1b1c20;
+    --ink: #e8e7e2;
+    --muted: #93958d;
+    --line: #34362f;
+    --accent: #6ea6db;
+    --accent-soft: #1e2c38;
+    --warm: #e08b62;
+    --warm-soft: #35251d;
+    --code-bg: #202119;
+    --shadow: rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15161a; --panel: #1b1c20; --ink: #e8e7e2; --muted: #93958d;
+  --line: #34362f; --accent: #6ea6db; --accent-soft: #1e2c38;
+  --warm: #e08b62; --warm-soft: #35251d; --code-bg: #202119; --shadow: rgba(0,0,0,0.35);
+}
+:root[data-theme="light"] {
+  --bg: #fafaf8; --panel: #ffffff; --ink: #1c1d1a; --muted: #6b6d66;
+  --line: #d8d6cf; --accent: #2a5d8f; --accent-soft: #e4edf5;
+  --warm: #b5562f; --warm-soft: #f6e7e0; --code-bg: #f0efe9; --shadow: rgba(28,29,26,0.06);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.mono { font-family: 'JBM', 'JetBrains Mono', ui-monospace, monospace; }
+
+header {
+  margin-bottom: 2.25rem;
+}
+header .eyebrow {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+}
+header h1 {
+  font-size: 1.6rem;
+  margin: 0.35rem 0 0.4rem;
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  max-width: 62ch;
+}
+
+/* ---- pipeline ---- */
+.pipeline-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin: 0 -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: max-content;
+}
+.stage {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  width: 168px;
+  padding: 0.85rem 0.8rem;
+  box-shadow: 0 1px 2px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.stage.warm { border-top: 3px solid var(--warm); }
+.stage.core { border-top: 3px solid var(--accent); }
+.stage.plain { border-top: 3px solid var(--line); }
+
+.stage .kicker {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.stage h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.stage .shape {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  width: fit-content;
+}
+.stage.warm .shape { color: var(--warm); background: var(--warm-soft); }
+
+.stage .params {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.68rem;
+}
+.stage .params .p {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--ink);
+}
+.stage .params .p .v { color: var(--muted); font-weight: 600; }
+
+.arrow {
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+  align-self: center;
+}
+
+/* nested split block (train/val/test) */
+.split-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.split-bar { display: flex; height: 9px; border-radius: 2px; overflow: hidden; border: 1px solid var(--line); }
+.split-bar span:nth-child(1) { background: var(--accent); }
+.split-bar span:nth-child(2) { background: #7fae5c; }
+.split-bar span:nth-child(3) { background: var(--warm); }
+.split-legend { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.65rem; }
+.split-legend .row { display: flex; align-items: center; gap: 0.35rem; color: var(--muted); }
+.split-legend .dot { width: 7px; height: 7px; border-radius: 1px; flex: none; }
+
+/* encoder/decoder mini stack */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.62rem;
+}
+.stack .layer {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.2rem 0.4rem;
+  color: var(--muted);
+  text-align: center;
+}
+.stack .layer.hot { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700;}
+
+/* bottleneck circle */
+.bottleneck-vis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0;
+}
+.bottleneck-vis .ring {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---- legend / config table ---- */
+.section-title {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.5rem 0 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.6rem;
+}
+.config-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.7rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.config-card .name {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.config-card .name .val {
+  color: var(--accent);
+  font-weight: 700;
+}
+.config-card .desc {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.config-card .stagetag {
+  font-family: 'JBM', ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.legend-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.legend-row .item { display: flex; align-items: center; gap: 0.4rem; }
+.legend-row .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+footer {
+  margin-top: 3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">trajectory-denoising-ae-revised · main.py</div>
+    <h1>Data &rarr; noise &rarr; split &rarr; autoencoder &rarr; training</h1>
+    <p>Each block below is one stage of a training run, annotated with the exact variable(s) in <span class="mono">main.py</span> that control it. Scroll right on narrow screens.</p>
+  </header>
+
+  <div class="legend-row">
+    <div class="item"><span class="swatch" style="background:var(--warm)"></span>affects the noisy input / problem difficulty</div>
+    <div class="item"><span class="swatch" style="background:var(--accent)"></span>affects the trainable autoencoder</div>
+    <div class="item"><span class="swatch" style="background:var(--line)"></span>bookkeeping / reproducibility</div>
+  </div>
+
+  <div class="pipeline-scroll">
+    <div class="pipeline">
+
+      <div class="stage plain">
+        <div class="kicker">01 · generate</div>
+        <h3>Clean trajectories</h3>
+        <div class="shape">(N, T, 3)</div>
+        <div class="params">
+          <div class="p"><span>N_TRAJECTORIES</span><span class="v">300</span></div>
+          <div class="p"><span>T</span><span class="v">1200</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage warm">
+        <div class="kicker">02 · corrupt</div>
+        <h3>Add Gaussian noise</h3>
+        <div class="shape">(N, T, 3)</div>
+        <div class="params">
+          <div class="p"><span>NOISE_SIGMA</span><span class="v">0.6</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage plain">
+        <div class="kicker">03 · optional</div>
+        <h3>Per-traj normalize</h3>
+        <div class="shape">scale by max |x|</div>
+        <div class="params">
+          <div class="p"><span>NORMALIZE</span><span class="v">False</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage plain">
+        <div class="kicker">04 · split</div>
+        <h3>Train / val / test</h3>
+        <div class="split-inner">
+          <div class="split-bar" style="width:100%">
+            <span style="width:60%"></span><span style="width:20%"></span><span style="width:20%"></span>
+          </div>
+          <div class="split-legend">
+            <div class="row"><span class="dot" style="background:var(--accent)"></span>train &mdash; TRAIN_SPLIT 0.6</div>
+            <div class="row"><span class="dot" style="background:#7fae5c"></span>val &mdash; VAL_SPLIT 0.2</div>
+            <div class="row"><span class="dot" style="background:var(--warm)"></span>test &mdash; remainder 0.2</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage core">
+        <div class="kicker">05 · encoder</div>
+        <h3>Compress</h3>
+        <div class="stack">
+          <div class="layer">Linear(T&middot;3 &rarr; HIDDEN_DIM)</div>
+          <div class="layer">ReLU</div>
+          <div class="layer hot">Linear(HIDDEN_DIM &rarr; EMBEDDING_SIZE)</div>
+        </div>
+        <div class="params">
+          <div class="p"><span>HIDDEN_DIM</span><span class="v">64</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage core">
+        <div class="kicker">06 · bottleneck</div>
+        <h3>Latent code</h3>
+        <div class="bottleneck-vis"><div class="ring">z</div></div>
+        <div class="params">
+          <div class="p"><span>EMBEDDING_SIZE</span><span class="v">8</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage core">
+        <div class="kicker">07 · decoder</div>
+        <h3>Reconstruct</h3>
+        <div class="stack">
+          <div class="layer hot">Linear(EMBEDDING_SIZE &rarr; HIDDEN_DIM)</div>
+          <div class="layer">ReLU</div>
+          <div class="layer">Linear(HIDDEN_DIM &rarr; T&middot;3)</div>
+        </div>
+        <div class="params">
+          <div class="p"><span>HIDDEN_DIM</span><span class="v">64</span></div>
+        </div>
+      </div>
+
+      <div class="arrow">&rarr;</div>
+
+      <div class="stage plain">
+        <div class="kicker">08 · train loop</div>
+        <h3>Optimize (Adam)</h3>
+        <div class="shape">MSE(recon, clean)</div>
+        <div class="params">
+          <div class="p"><span>EPOCHS</span><span class="v">100</span></div>
+          <div class="p"><span>BATCH_SIZE</span><span class="v">32</span></div>
+          <div class="p"><span>LR</span><span class="v">1e-3</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section-title">Full config reference</div>
+  <div class="config-grid">
+
+    <div class="config-card">
+      <div class="name">N_TRAJECTORIES <span class="val">300</span></div>
+      <div class="desc">How many synthetic spiral trajectories exist in the dataset.</div>
+      <div class="stagetag">stage 01 · generate</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">T <span class="val">1200</span></div>
+      <div class="desc">Timesteps per trajectory &mdash; sets input/output width (T&middot;3) of the autoencoder.</div>
+      <div class="stagetag">stage 01 · generate</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">NOISE_SIGMA <span class="val">0.6</span></div>
+      <div class="desc">Std dev of Gaussian noise added per (x,y,z) point. Higher = harder denoising task.</div>
+      <div class="stagetag">stage 02 · corrupt</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">NORMALIZE <span class="val">False</span></div>
+      <div class="desc">If true, scales each trajectory by its own max before encoding, then rescales the decoder output back.</div>
+      <div class="stagetag">stage 03 · normalize</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">TRAIN_SPLIT <span class="val">0.6</span></div>
+      <div class="desc">Fraction of trajectories used to fit model weights.</div>
+      <div class="stagetag">stage 04 · split</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">VAL_SPLIT <span class="val">0.2</span></div>
+      <div class="desc">Fraction used for model selection / early stopping. Remaining 0.2 is held out as test.</div>
+      <div class="stagetag">stage 04 · split</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">HIDDEN_DIM <span class="val">64</span></div>
+      <div class="desc">Width of the single hidden layer in both encoder and decoder. Lower = leaner model.</div>
+      <div class="stagetag">stage 05/07 · encoder &amp; decoder</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">EMBEDDING_SIZE <span class="val">8</span></div>
+      <div class="desc">Width of the bottleneck &mdash; how much the 3600-dim input (T&middot;3) is compressed to.</div>
+      <div class="stagetag">stage 06 · bottleneck</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">EPOCHS <span class="val">100</span></div>
+      <div class="desc">Full passes over the training set.</div>
+      <div class="stagetag">stage 08 · train loop</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">BATCH_SIZE <span class="val">32</span></div>
+      <div class="desc">Trajectories per gradient update.</div>
+      <div class="stagetag">stage 08 · train loop</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">LR <span class="val">1e-3</span></div>
+      <div class="desc">Adam learning rate. Try 1e-4&ndash;1e-2 if loss stalls or diverges.</div>
+      <div class="stagetag">stage 08 · train loop</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">SEED <span class="val">5</span></div>
+      <div class="desc">Seeds numpy + torch so runs are reproducible and comparable.</div>
+      <div class="stagetag">bookkeeping</div>
+    </div>
+
+    <div class="config-card">
+      <div class="name">SAMPLE_IDX <span class="val">50</span></div>
+      <div class="desc">Which test-split trajectory gets plotted/animated in the per-run figures.</div>
+      <div class="stagetag">bookkeeping</div>
+    </div>
+
+  </div>
+
+  <footer>
+    Autoencoder shape: input (T&middot;3) &rarr; HIDDEN_DIM &rarr; EMBEDDING_SIZE &rarr; HIDDEN_DIM &rarr; output (T&middot;3), each hidden layer followed by ReLU. Loss is MSE between reconstructed and clean trajectories, held-out test MSE reported alongside the no-denoising baseline (&asymp; sigma&sup2;).
+  </footer>
+</div>
+</body>
+</html>

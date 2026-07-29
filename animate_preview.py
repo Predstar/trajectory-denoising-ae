@@ -149,6 +149,111 @@ def animate_sample(data_dir=DATA_DIR, sample_idx=SAMPLE_IDX, out_path="trajector
     print(f"saved {out_path}")
 
 
+def animate_train_test_comparison(train_clean, train_recon, test_clean, test_recon,
+                                   out_path="train_test_comparison.mp4", max_frames=100,
+                                   train_mse=None, test_mse=None):
+    """Animate a train-split trajectory and a test-split trajectory side by side,
+    each shown as clean vs reconstructed, growing simultaneously frame-by-frame.
+
+    These two trajectories are independent, randomly-generated spirals (see
+    trajectory.py) -- there is no shape correspondence between them. Callers
+    should pick each one by some fair criterion (e.g. closest to its split's
+    median reconstruction MSE) rather than by matching index, and may pass
+    that MSE in via train_mse/test_mse so it's visible in the panel titles.
+
+    Args:
+        train_clean, train_recon: np.ndarray (T, 3) for one train-split trajectory.
+        test_clean, test_recon: np.ndarray (T, 3) for one test-split trajectory.
+        max_frames: trajectories are subsampled down to at most this many frames.
+        train_mse, test_mse: optional per-trajectory MSE to show in the title.
+    """
+    def subsample(arr):
+        if len(arr) <= max_frames:
+            return arr
+        idx = np.linspace(0, len(arr) - 1, max_frames).astype(int)
+        return arr[idx]
+
+    train_clean, train_recon = subsample(train_clean), subsample(train_recon)
+    test_clean, test_recon = subsample(test_clean), subsample(test_recon)
+    n = len(train_clean)
+
+    def make_title(base, mse):
+        return f"{base} (median MSE={mse:.4f})" if mse is not None else base
+
+    fig = plt.figure(figsize=(14, 7), facecolor="black")
+    panels = []
+    for i, (title, clean, recon) in enumerate([
+        (make_title("train sample", train_mse), train_clean, train_recon),
+        (make_title("test sample", test_mse), test_clean, test_recon),
+    ]):
+        ax = fig.add_subplot(1, 2, i + 1, projection='3d')
+        ax.set_facecolor("black")
+        ax.xaxis.set_pane_color((0, 0, 0, 1))
+        ax.yaxis.set_pane_color((0, 0, 0, 1))
+        ax.zaxis.set_pane_color((0, 0, 0, 1))
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis.line.set_color("white")
+            axis.label.set_color("white")
+        ax.tick_params(colors="white")
+        ax.view_init(elev=22, azim=-60)
+        ax.set_title(title, color="white")
+
+        all_points = np.concatenate([clean, recon], axis=0)
+        ax.set_xlim(all_points[:, 0].min() - 0.5, all_points[:, 0].max() + 0.5)
+        ax.set_ylim(all_points[:, 1].min() - 0.5, all_points[:, 1].max() + 0.5)
+        ax.set_zlim(all_points[:, 2].min() - 0.5, all_points[:, 2].max() + 0.5)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+
+        clean_line, = ax.plot([], [], [], lw=2, color="#3987e5", label='clean')
+        clean_point, = ax.plot([], [], [], 'o', color="#3987e5")
+        recon_line, = ax.plot([], [], [], lw=2, linestyle='--', color="#199e70", label='reconstructed')
+        recon_point, = ax.plot([], [], [], 'o', color="#199e70")
+        ax.legend(facecolor="black", edgecolor="white", labelcolor="white")
+
+        panels.append({
+            "clean": clean, "recon": recon,
+            "clean_line": clean_line, "clean_point": clean_point,
+            "recon_line": recon_line, "recon_point": recon_point,
+        })
+
+    # Two phases: clean draws fully on both panels, then reconstructed draws
+    # fully on both panels (clean stays visible), so the panels stay in sync.
+    phase_bounds = np.cumsum([0, n, n])
+
+    def update(frame):
+        phase_idx = min(np.searchsorted(phase_bounds, frame, side='right') - 1, 1)
+        local_frame = frame - phase_bounds[phase_idx]
+
+        artists = []
+        for p in panels:
+            clean_upto = n if phase_idx > 0 else local_frame
+            p["clean_line"].set_data(p["clean"][:clean_upto, 0], p["clean"][:clean_upto, 1])
+            p["clean_line"].set_3d_properties(p["clean"][:clean_upto, 2])
+            if clean_upto > 0:
+                p["clean_point"].set_data(p["clean"][clean_upto - 1:clean_upto, 0],
+                                           p["clean"][clean_upto - 1:clean_upto, 1])
+                p["clean_point"].set_3d_properties(p["clean"][clean_upto - 1:clean_upto, 2])
+
+            recon_upto = 0 if phase_idx < 1 else local_frame
+            p["recon_line"].set_data(p["recon"][:recon_upto, 0], p["recon"][:recon_upto, 1])
+            p["recon_line"].set_3d_properties(p["recon"][:recon_upto, 2])
+            if recon_upto > 0:
+                p["recon_point"].set_data(p["recon"][recon_upto - 1:recon_upto, 0],
+                                           p["recon"][recon_upto - 1:recon_upto, 1])
+                p["recon_point"].set_3d_properties(p["recon"][recon_upto - 1:recon_upto, 2])
+
+            artists += [p["clean_line"], p["clean_point"], p["recon_line"], p["recon_point"]]
+        return artists
+
+    total_frames = phase_bounds[-1]
+    anim = FuncAnimation(fig, update, frames=range(1, total_frames + 1), interval=30)
+    anim.save(out_path, writer=FFMpegWriter(fps=15), savefig_kwargs={"facecolor": "black"})
+    plt.close(fig)
+    print(f"saved {out_path}")
+
+
 if __name__ == "__main__":
     import matplotlib
     matplotlib.use('Agg')

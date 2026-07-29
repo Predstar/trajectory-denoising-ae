@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mathematical Foundations of 3D Trajectory Denoising — Revised</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+    ignoredClasses: ['prof-text', 'byline'],
+    throwOnError: false
+  });"></script>
+<style>
+:root{
+  --bg:#ffffff;
+  --surface:#ffffff;
+  --ink:#232019;
+  --ink-soft:#645c4d;
+  --line:#e2dccc;
+  --accent:#2a5f52;
+  --accent-soft:#e8f0ec;
+  --comment-bg:#fdf3d8;
+  --comment-border:#d9a441;
+  --comment-ink:#5c4a12;
+  --code-bg:#f1efe6;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:16.5px;
+  line-height:1.65;
+  padding:3rem 1.25rem 5rem;
+}
+.page{ max-width:760px; margin:0 auto; }
+
+header{ margin-bottom:2.2rem; padding-bottom:1.4rem; border-bottom:2px solid var(--ink); }
+h1{
+  font-size:1.7rem;
+  font-weight:600;
+  margin:0 0 0.5rem;
+  text-wrap:balance;
+  letter-spacing:-0.01em;
+}
+.byline{
+  font-family:var(--mono);
+  font-size:0.78rem;
+  color:var(--ink-soft);
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+.revision-note{
+  margin-top:0.9rem;
+  font-size:0.88rem;
+  color:var(--ink-soft);
+  font-family:var(--serif);
+  font-style:italic;
+}
+
+h2{
+  font-size:1.22rem;
+  font-weight:600;
+  margin:2.6rem 0 0.9rem;
+  padding-top:0.2rem;
+  color:var(--ink);
+}
+h3{
+  font-size:1.02rem;
+  font-weight:600;
+  margin:1.8rem 0 0.7rem;
+}
+
+p{ margin:0 0 1rem; }
+ul, ol{ margin:0 0 1rem; padding-left:1.4rem; }
+li{ margin-bottom:0.35rem; }
+
+code{
+  font-family:var(--mono);
+  font-size:0.86em;
+  background:var(--code-bg);
+  padding:0.08em 0.35em;
+  border-radius:3px;
+}
+
+.eq{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:1.1rem 1.3rem;
+  margin:0 0 0.5rem;
+  overflow-x:auto;
+  break-inside:avoid;
+  text-align:center;
+}
+.eq .line{ padding:0.35rem 0; font-size:1.05rem; }
+.eq .comment{ color:var(--ink-soft); font-family:var(--serif); font-style:italic; font-size:0.78rem; display:block; margin-top:0.15rem; }
+.eq .katex{ font-size:1.05em; }
+.eq .katex-display{ margin:0.2rem 0; }
+.eq-source{
+  font-family:var(--serif);
+  font-size:0.8rem;
+  color:var(--accent);
+  margin:0 0 1.1rem;
+  font-style:italic;
+}
+.eq-source .cite{ font-style:normal; }
+
+/* --- Professor comment callout --- */
+.prof{
+  background:var(--comment-bg);
+  border:1px solid var(--comment-border);
+  border-left:4px solid var(--comment-border);
+  border-radius:4px;
+  padding:0.85rem 1.1rem;
+  margin:1.1rem 0 0.9rem;
+  break-inside:avoid;
+}
+.prof-label{
+  font-family:var(--mono);
+  font-size:0.68rem;
+  text-transform:uppercase;
+  letter-spacing:0.07em;
+  color:var(--comment-ink);
+  font-weight:700;
+  margin-bottom:0.3rem;
+}
+.prof-text{
+  color:var(--comment-ink);
+  font-size:0.94rem;
+  font-style:italic;
+}
+
+/* --- Revision marker (highlighted changed text) --- */
+mark{
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color:var(--ink);
+  padding:0.02em 0.15em;
+  border-radius:2px;
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+}
+.revised-tag{
+  display:inline-block;
+  font-family:var(--mono);
+  font-size:0.62rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--accent);
+  border:1px solid var(--accent);
+  border-radius:3px;
+  padding:0.05em 0.4em;
+  margin-left:0.5rem;
+  vertical-align:middle;
+}
+
+.caution{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:4px solid var(--ink-soft);
+  border-radius:4px;
+  padding:0.85rem 1.1rem;
+  margin:0.9rem 0 1.1rem;
+  font-size:0.92rem;
+  break-inside:avoid;
+}
+.caution-label{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--ink-soft);
+  font-weight:700;
+  margin-bottom:0.3rem;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin:0 0 1.2rem;
+  font-size:0.92rem;
+  break-inside:avoid;
+}
+th, td{
+  text-align:left;
+  padding:0.5rem 0.7rem;
+  border-bottom:1px solid var(--line);
+}
+th{
+  font-family:var(--mono);
+  font-size:0.7rem;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  color:var(--ink-soft);
+  font-weight:600;
+}
+td.num{ font-variant-numeric:tabular-nums; font-family:var(--mono); text-align:right; }
+.table-wrap{ overflow-x:auto; }
+
+.cite{
+  font-size:0.82rem;
+  vertical-align:super;
+  color:var(--accent);
+  font-weight:600;
+}
+
+#references{
+  margin-top:3rem;
+  padding-top:1.5rem;
+  border-top:2px solid var(--ink);
+}
+.ref-item{
+  font-size:0.9rem;
+  margin-bottom:0.9rem;
+  padding-left:2rem;
+  text-indent:-2rem;
+}
+.ref-item b{ font-weight:600; }
+
+.toc{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:1rem 1.3rem;
+  margin-bottom:2rem;
+  font-size:0.88rem;
+  break-inside:avoid;
+}
+.toc-title{
+  font-family:var(--mono);
+  font-size:0.7rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--ink-soft);
+  margin-bottom:0.5rem;
+}
+.toc a{ color:var(--ink); text-decoration:none; }
+.toc a:hover{ color:var(--accent); }
+.toc ul{ margin:0; padding-left:1.1rem; }
+.toc li{ margin-bottom:0.2rem; }
+
+.status{
+  display:inline-block;
+  font-family:var(--mono);
+  font-size:0.62rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  border-radius:3px;
+  padding:0.15em 0.5em;
+  margin-left:0.6rem;
+  vertical-align:middle;
+  font-style:normal;
+}
+.status.justified{ color:var(--accent); border:1px solid var(--accent); background:var(--accent-soft); }
+.status.open{ color:var(--ink-soft); border:1px solid var(--line); background:var(--surface); }
+
+#checklist{
+  margin-top:3rem;
+  padding-top:1.5rem;
+  border-top:2px solid var(--ink);
+}
+.checklist-summary{
+  display:flex;
+  gap:1.6rem;
+  flex-wrap:wrap;
+  margin:0 0 1.4rem;
+  padding:0.9rem 1.1rem;
+  background:var(--accent-soft);
+  border:1px solid var(--accent);
+  border-radius:6px;
+  font-size:0.9rem;
+}
+.checklist-summary b{ font-family:var(--mono); font-size:1.15rem; color:var(--accent); }
+.check-table td, .check-table th{ vertical-align:top; }
+.check-table td.loc{ font-family:var(--mono); font-size:0.8rem; color:var(--ink-soft); white-space:nowrap; }
+.check-table td.status-cell{ white-space:nowrap; }
+
+.legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.2rem;
+  font-size:0.82rem;
+  color:var(--ink-soft);
+  margin-bottom:1.8rem;
+  padding:0.8rem 1.1rem;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:6px;
+  break-inside:avoid;
+}
+.legend-item{ display:flex; align-items:center; gap:0.4rem; }
+.legend-swatch{ width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
+.legend-swatch.prof{ background:var(--comment-bg); border:1px solid var(--comment-border); }
+.legend-swatch.mark{ background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* --- Print / PDF export --- */
+@media print{
+  body{ background:#ffffff; padding:0; font-size:11.5pt; }
+  :root{ --bg:#ffffff; }
+  .page{ max-width:none; }
+  a{ color:inherit; text-decoration:none; }
+  h2{ break-after:avoid; }
+  h3{ break-after:avoid; }
+  p{ orphans:3; widows:3; }
+  #references{ break-before:page; }
+}
+@page{
+  size:A4;
+  margin:2cm;
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Mathematical Foundations of 3D Trajectory Denoising Using a Fully-Connected Denoising Autoencoder</h1>
+    <div class="byline">Thesis technical reference — revised per supervisor feedback</div>
+    <p class="revision-note">
+      This revision incorporates the professor's written comments on the original draft.
+      Each flagged section shows the original comment, followed by the corrected text.
+      Configuration values below match the current implementation in
+      <code>trajectory-denoising-ae-revised/main.py</code> and <code>model.py</code>
+      (<code>N_TRAJECTORIES=300</code>, <code>T=400</code>, <code>&sigma;=0.6</code>,
+      <code>HIDDEN_DIMS=(128,64,32)</code>, <code>EMBEDDING_SIZE=16</code>).
+    </p>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-swatch prof"></span> Professor comment (verbatim)</div>
+    <div class="legend-item"><span class="legend-swatch mark"></span> <mark>Revised text</mark> addressing the comment</div>
+    <div class="legend-item"><span class="status justified">justified</span> comment fully addressed in this revision</div>
+    <div class="legend-item">[n] — literature citation, see References</div>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ul>
+      <li><a href="#sec1">1. Data Representation</a></li>
+      <li><a href="#sec2">2. Spiral Trajectory Generation</a></li>
+      <li><a href="#sec3">3. Noise Model</a></li>
+      <li><a href="#sec4">4. Autoencoder Architecture</a></li>
+      <li><a href="#sec5">5. Activation Function — ReLU</a></li>
+      <li><a href="#sec6">6. Loss Function — Mean Squared Error</a></li>
+      <li><a href="#sec7">7. Training Procedure</a></li>
+      <li><a href="#sec8">8. Why Compression Can Support Denoising</a></li>
+      <li><a href="#checklist">Comment Resolution Checklist</a></li>
+      <li><a href="#references">References</a></li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h2 id="sec1">1. Data Representation</h2>
+
+  <h3>1.1 Single trajectory</h3>
+  <p>A single 3D spiral trajectory is a multivariate time series — a sequence of <code>T</code> observations, each recording three spatial coordinates at one instant in time:</p>
+  <div class="eq">
+    <div class="line">$$\tau = \{(x_t, y_t, z_t) \in \mathbb{R}^3 : t = 0, 1, \ldots, T-1\} \iff \tau \in \mathbb{R}^{T \times 3}$$</div>
+  </div>
+  <p class="eq-source">Definition specific to this project's data generator (<code>trajectory.py</code>); not drawn from external literature.</p>
+
+  <div class="prof">
+    <div class="prof-label" id="c1">Professor comment — §1.1 <span class="status justified">justified</span></div>
+    <div class="prof-text">"Are these all the same trajectories just with different noise? It might help to also vary other parameters to get richer training data."</div>
+  </div>
+  <p><mark>The trajectories are not copies of one clean spiral with different noise draws. For every one of the <code>N</code> trajectories, the generator independently samples four physical parameters — starting radius $r_0$, radius growth rate $k$, vertical speed $v_z$, and total arc $t_{\max}$ — from fixed uniform ranges (see §2.1), then draws an independent Gaussian noise realization on top. Each trajectory in the dataset is therefore geometrically distinct, not a noisy repeat of a shared template.</mark><span class="revised-tag">revised</span></p>
+  <p><mark>The current parameterization varies 4 scalars per trajectory. Richer variation — initial phase offset, angular velocity, starting height, lateral centre offset, or 3D orientation — is a natural extension for future work, but is not implemented in the current codebase (<code>trajectory.py</code>); this reference describes the system as built, not a proposed extension.</mark></p>
+
+  <h3>1.2 Full dataset</h3>
+  <p>The complete synthetic dataset consists of <code>N</code> independently generated trajectories, forming a rank-3 tensor <code>X ∈ ℝ^(N×T×3)</code>. For the configuration used in this reference: <code>N = 300</code>, <code>T = 400</code>.</p>
+
+  <h3>1.3 Flattening for the autoencoder</h3>
+  <p>The fully-connected autoencoder requires a flat 1D vector as input. Each trajectory matrix is unrolled into a single row vector:</p>
+  <div class="eq">
+    <div class="line">$$\tau_{\text{flat}} = \operatorname{flatten}(\tau) \in \mathbb{R}^{T \times 3} = \mathbb{R}^{400 \times 3} = \mathbb{R}^{1200}$$</div>
+    <div class="line">$$X_{\text{flat}} \in \mathbb{R}^{300 \times 1200}$$</div>
+  </div>
+  <p class="eq-source">Reshape used directly by this codebase (<code>main.py</code>: <code>clean.reshape(N_TRAJECTORIES, -1)</code>); a standard flattening step for fully-connected autoencoders, not a distinct literature result on its own.</p>
+
+  <!-- SECTION 2 -->
+  <h2 id="sec2">2. Spiral Trajectory Generation Function</h2>
+
+  <h3>2.1 Parametric definition</h3>
+  <div class="prof">
+    <div class="prof-label" id="c2">Professor comment — §2.1 <span class="status justified">justified</span></div>
+    <div class="prof-text">"In the writeup for the thesis, leave the number of steps in the trajectory as a variable."</div>
+  </div>
+  <p><mark>All definitions below use <code>T</code> as a free variable. The reported experiments in this document use <code>T = 400</code>; this is a chosen experimental setting, not part of the general theory, and other values of <code>T</code> do not change any equation in this section.</mark><span class="revised-tag">revised</span></p>
+
+  <div class="eq">
+    <div class="line">$$t = \operatorname{linspace}(0, t_{\max}, T) \implies \Delta t = \frac{t_{\max}}{T-1}$$</div>
+    <div class="line">$$r(t) = r_0 + kt$$<span class="comment">radius at time t</span></div>
+    <div class="line">$$x(t) = r(t)\cos(t) = (r_0 + kt)\cos(t)$$</div>
+    <div class="line">$$y(t) = r(t)\sin(t) = (r_0 + kt)\sin(t)$$</div>
+    <div class="line">$$z(t) = v_z \, t$$</div>
+  </div>
+  <p class="eq-source">Custom parametric spiral defined for this thesis (<code>trajectory.py: generate_spiral_trajectory</code>); an original construction, not adapted from a cited source.</p>
+
+  <p>The four parameters are independently randomized per trajectory:</p>
+  <ul>
+    <li>$r_0 \sim \text{Uniform}(0.5, 1.5)$ — starting radius</li>
+    <li>$k \sim \text{Uniform}(-0.2, 0.2)$ — radius growth rate (positive = expanding, negative = contracting)</li>
+    <li>$v_z \sim \text{Uniform}(-0.5, 0.5)$ — vertical speed</li>
+    <li>$t_{\max} \sim \text{Uniform}(2\pi, 6\pi)$ — total arc (1 to 3 full rotations)</li>
+  </ul>
+
+  <div class="caution">
+    <div class="caution-label">Note on r(t)</div>
+    If <code>k</code> is sufficiently negative and <code>t_max</code> sufficiently large, <code>r(t)</code> can become negative within the sampled range, which flips the trajectory to the opposite side of the origin rather than producing a true contracting-then-reflecting spiral. This is a property of the current parameter ranges in <code>trajectory.py</code>, not a modeling error, but is worth stating explicitly if a strictly non-negative radius is assumed elsewhere in the thesis.
+  </div>
+
+  <h3>2.2 Intrinsic dimensionality of the generator</h3>
+  <p>Each trajectory is fully determined by exactly 4 scalar parameters: $r_0, k, v_z, t_{\max}$. <mark>This means the <em>generating process</em> has 4 degrees of freedom, even though each trajectory is represented as a vector in $\mathbb{R}^{1200}$. This is a statement about how the data was generated — it does not by itself establish what dimensionality the trained autoencoder discovers or uses internally (see §8).</mark><span class="revised-tag">revised</span></p>
+
+  <!-- SECTION 3 -->
+  <h2 id="sec3">3. Noise Model</h2>
+
+  <h3>3.1 Gaussian noise addition</h3>
+  <p>Given a clean trajectory $\tau_{\text{clean}}$, the noisy observation is $\tau_{\text{noisy}}(t) = \tau_{\text{clean}}(t) + \varepsilon(t)$, with $\varepsilon(t) = (\varepsilon_x, \varepsilon_y, \varepsilon_z)(t)$, each component drawn i.i.d. from $\mathcal{N}(0, \sigma^2)$.</p>
+  <p class="eq-source">Additive isotropic Gaussian noise is one of the corruption processes analyzed for denoising autoencoders in Vincent et al. <span class="cite">[1]</span><span class="cite">[2]</span>.</p>
+
+  <div class="prof">
+    <div class="prof-label" id="c3">Professor comment — §3.2 (i) <span class="status justified">justified</span></div>
+    <div class="prof-text">"Give some interpretation what this number means."</div>
+  </div>
+  <p><mark>$\sigma = 0.6$ is the noise <strong>standard deviation</strong>, not its power. The expected noise power per coordinate is $\sigma^2 = 0.36$. Under the Gaussian model, about 68% of individual perturbations lie within $\pm 0.6$ of the clean value, and 95% within $\pm 1.2$. Whether $\sigma = 0.6$ counts as "moderate" noise depends on the scale of the trajectory itself (radius range $\approx 0.5$–$1.5$, so a single perturbation can be comparable in magnitude to the signal); this should be supported empirically with an input SNR figure, a clean/noisy overlay plot, and a comparison across multiple $\sigma$ values — all of which are produced by the current codebase (<code>visualize.py: plot_snr_improvement</code>, <code>noise_sweep.py</code>) rather than asserted from the formula alone.</mark><span class="revised-tag">revised</span></p>
+
+  <h3>3.2 Signal-to-noise ratio</h3>
+  <div class="prof">
+    <div class="prof-label" id="c4">Professor comment — §3.2 (ii) <span class="status justified">justified</span></div>
+    <div class="prof-text">"What exactly is P_signal and P_noise here? … τ_clean has also not been introduced. SNR is a useful metric to gauge efficiency of the AE but it needs some introduction."</div>
+  </div>
+  <p><mark>Let $\tau_i^{\text{clean}}$ denote the clean trajectory for sample $i$, $\tau_i^{\text{noisy}} = \tau_i^{\text{clean}} + \varepsilon_i$ the noisy input, and $\hat{\tau}_i$ the autoencoder's reconstruction. In this context, "signal" always refers specifically to the clean trajectory $\tau_i^{\text{clean}}$ — the two terms are used interchangeably below, and $P_{\text{signal}}$ is literally the average squared magnitude of the clean trajectory, not a separate quantity. Define:</mark><span class="revised-tag">revised</span></p>
+  <div class="eq">
+    <div class="line">$$P_{\text{signal}} = \operatorname{mean}\!\left((\tau_i^{\text{clean}})^2\right)$$<span class="comment">power of the clean trajectory itself</span></div>
+    <div class="line">$$P_{\text{noise,before}} = \operatorname{mean}\!\left((\tau_i^{\text{noisy}} - \tau_i^{\text{clean}})^2\right)$$<span class="comment">noise power before denoising</span></div>
+    <div class="line">$$P_{\text{error,after}} = \operatorname{mean}\!\left((\hat{\tau}_i - \tau_i^{\text{clean}})^2\right)$$<span class="comment">residual error power after denoising</span></div>
+  </div>
+  <p><mark>The same decibel formula is then applied twice — once against the noise power before denoising, once against the residual error power after denoising — so the two numbers are directly comparable:</mark><span class="revised-tag">revised</span></p>
+  <div class="eq">
+    <div class="line">$$\text{SNR}_{\text{before}} \text{(dB)} = 10 \log_{10}\!\left(\frac{P_{\text{signal}}}{P_{\text{noise,before}}}\right)$$</div>
+    <div class="line">$$\text{SNR}_{\text{after}} \text{(dB)} = 10 \log_{10}\!\left(\frac{P_{\text{signal}}}{P_{\text{error,after}}}\right)$$</div>
+  </div>
+  <p class="eq-source">The decibel form $10\log_{10}(P_{\text{signal}}/P_{\text{noise}})$ is the standard definition of signal-to-noise ratio for power quantities in signal processing (see the "Random Signals" appendix of a standard DSP text, e.g. Oppenheim &amp; Schafer <span class="cite">[10]</span>, where SNR for a signal corrupted by a random process is treated in general). A specific page/section number is not given here, since it has not been directly verified against a copy of the book. It is not autoencoder-specific; the denoising-specific part is only the choice of what to plug in for $P_{\text{signal}}$, $P_{\text{noise,before}}$, and $P_{\text{error,after}}$ (defined above), which follows this project's own implementation in <code>visualize.py: plot_snr_improvement</code> rather than a cited formula.</p>
+  <p>This matches the implementation in <code>visualize.py: plot_snr_improvement</code>, which computes $\text{SNR}_{\text{before}}$ and $\text{SNR}_{\text{after}}$ per trajectory, over a sampled subset of the test split.</p>
+
+  <!-- SECTION 4 -->
+  <h2 id="sec4">4. Autoencoder Architecture</h2>
+
+  <h3>4.1 Overview</h3>
+  <p>A denoising autoencoder (DAE) is trained to map a corrupted input back to its clean version <span class="cite">[1]</span>. It consists of an encoder that compresses the input into a low-dimensional latent representation, and a decoder that reconstructs the clean signal from that representation.</p>
+  <div class="eq">
+    <div class="line">$$f : \mathbb{R}^{1200} \longrightarrow \mathbb{R}^{1200}$$<span class="comment">input: noisy trajectory &rarr; output: reconstructed clean trajectory</span></div>
+  </div>
+  <p class="eq-source">Encoder/decoder decomposition <code>f = Dec ∘ Enc</code> follows the general denoising autoencoder formulation of Vincent et al. <span class="cite">[1]</span><span class="cite">[2]</span>.</p>
+
+  <div class="prof">
+    <div class="prof-label" id="c5">Professor comment — §4.3 (decoder / normalization) <span class="status justified">justified</span></div>
+    <div class="prof-text">"Try if it helps to normalize the trajectory before denoising."</div>
+  </div>
+  <p><mark>Implemented in <code>normalize.py</code> and wired into <code>main.py</code> via the <code>NORMALIZE</code> flag: each trajectory is optionally scaled by its own per-trajectory factor $d_{\max,i} = \max_t \Vert x_{i,t} \Vert_2$ before the encoder sees it, and the decoder's output is multiplied back by the same stored <code>d_max,i</code> before computing MSE in original units. This lets the raw-coordinate and per-trajectory-normalized training regimes be compared directly on the same held-out test set, rather than asserted to help without measurement.</mark><span class="revised-tag">revised</span></p>
+
+  <div class="prof">
+    <div class="prof-label" id="c6">Professor comment — §4.5 (parameter count) <span class="status justified">justified</span></div>
+    <div class="prof-text">"That is already a quite heavy network, try what happens if you use a leaner AE."</div>
+  </div>
+  <p><mark>The network width is now configurable rather than fixed at a single hidden layer of 128. <code>model.py</code>'s <code>TrajectoryAE</code> accepts a <code>hidden_dims</code> sequence and builds a tapered stack of <code>Linear → ReLU</code> layers from <code>input_dim</code> down to <code>embedding_size</code>, mirrored in reverse for the decoder. The configuration used in this document is <code>hidden_dims=(128, 64, 32)</code> with <code>embedding_size=16</code>, i.e. a taper 1200 → 128 → 64 → 32 → 16, rather than a single 1200 → 128 → 8 jump. See §4.4 for the resulting shapes and parameter count.</mark><span class="revised-tag">revised</span></p>
+
+  <h3>4.2 Encoder (current configuration)</h3>
+  <div class="eq">
+    <div class="line">$$\text{Encoder} : \mathbb{R}^{1200} \to \mathbb{R}^{128} \to \mathbb{R}^{64} \to \mathbb{R}^{32} \to \mathbb{R}^{16}$$</div>
+    <div class="line">$$h_1 = \operatorname{ReLU}(W_1 x_{\text{noisy}} + b_1), \quad W_1 \in \mathbb{R}^{128 \times 1200}$$</div>
+    <div class="line">$$h_2 = \operatorname{ReLU}(W_2 h_1 + b_2), \quad W_2 \in \mathbb{R}^{64 \times 128}$$</div>
+    <div class="line">$$h_3 = \operatorname{ReLU}(W_3 h_2 + b_3), \quad W_3 \in \mathbb{R}^{32 \times 64}$$</div>
+    <div class="line">$$z = \operatorname{ReLU}(W_4 h_3 + b_4), \quad W_4 \in \mathbb{R}^{16 \times 32}, \quad z \in \mathbb{R}^{16}$$</div>
+  </div>
+  <p class="eq-source">Tapered fully-connected encoder, implemented in <code>model.py: TrajectoryAE._build_mlp</code>; the taper-toward-bottleneck pattern (vs. a single wide-to-narrow jump) reflects standard undercomplete-autoencoder design discussed in Goodfellow et al. <span class="cite">[8]</span>, ch. 14.</p>
+  <p>Compression ratio: <code>1200 / 16 = 75×</code>.</p>
+
+  <h3>4.3 Decoder (current configuration)</h3>
+  <div class="eq">
+    <div class="line">$$\text{Decoder} : \mathbb{R}^{16} \to \mathbb{R}^{32} \to \mathbb{R}^{64} \to \mathbb{R}^{128} \to \mathbb{R}^{1200}$$</div>
+    <div class="line">$$h_5 = \operatorname{ReLU}(W_5 z + b_5), \quad W_5 \in \mathbb{R}^{32 \times 16}$$</div>
+    <div class="line">$$h_6 = \operatorname{ReLU}(W_6 h_5 + b_6), \quad W_6 \in \mathbb{R}^{64 \times 32}$$</div>
+    <div class="line">$$h_7 = \operatorname{ReLU}(W_7 h_6 + b_7), \quad W_7 \in \mathbb{R}^{128 \times 64}$$</div>
+    <div class="line">$$\hat{x} = W_8 h_7 + b_8, \quad W_8 \in \mathbb{R}^{1200 \times 128}$$<span class="comment">no ReLU — coordinates can be negative</span></div>
+  </div>
+  <p class="eq-source">Mirrored decoder, implemented in <code>model.py: TrajectoryAE._build_mlp</code> (reversed <code>hidden_dims</code>); omitting the final activation for real-valued (possibly negative) targets is standard practice for regression-style autoencoder outputs, not attributed to a single specific source.</p>
+
+  <h3>4.4 Layer-by-layer shapes and parameters</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>layer</th><th>shape</th><th class="num">parameters</th></tr></thead>
+    <tbody>
+      <tr><td>encoder.0 (Linear)</td><td>1200 → 128</td><td class="num">153,728</td></tr>
+      <tr><td>encoder.2 (Linear)</td><td>128 → 64</td><td class="num">8,256</td></tr>
+      <tr><td>encoder.4 (Linear)</td><td>64 → 32</td><td class="num">2,080</td></tr>
+      <tr><td>encoder.6 (Linear)</td><td>32 → 16</td><td class="num">528</td></tr>
+      <tr><td>decoder.0 (Linear)</td><td>16 → 32</td><td class="num">544</td></tr>
+      <tr><td>decoder.2 (Linear)</td><td>32 → 64</td><td class="num">2,112</td></tr>
+      <tr><td>decoder.4 (Linear)</td><td>64 → 128</td><td class="num">8,320</td></tr>
+      <tr><td>decoder.6 (Linear)</td><td>128 → 1200</td><td class="num">154,800</td></tr>
+      <tr><td><b>Total</b></td><td>1200 → 16 → 1200</td><td class="num"><b>330,368</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--ink-soft)">Recomputed directly from <code>model.py</code>'s <code>TrajectoryAE(input_dim=1200, embedding_size=16, hidden_dims=(128,64,32))</code> — not carried over from the original single-hidden-layer (128→8) configuration.</p>
+
+  <!-- SECTION 5 -->
+  <h2 id="sec5">5. Activation Function — ReLU</h2>
+  <div class="eq">
+    <div class="line">$$\operatorname{ReLU}(x) = \max(0, x)$$</div>
+  </div>
+  <p class="eq-source">Rectified Linear Unit, as popularized for deep network hidden layers by Nair &amp; Hinton <span class="cite">[4]</span>.</p>
+  <p>Without a non-linear activation, stacking Linear layers collapses to a single linear map ($W_2 (W_1 x) = (W_2 W_1) x$), which cannot represent the non-linear spiral trajectory. ReLU breaks this linearity.</p>
+
+  <!-- SECTION 6 -->
+  <h2 id="sec6">6. Loss Function — Mean Squared Error</h2>
+  <div class="prof">
+    <div class="prof-label" id="c7">Professor comment — §6.1–6.2 <span class="status justified">justified</span></div>
+    <div class="prof-text">"You do not need to write this in your thesis, this can be referenced." / "No need to explain ADAM, can reference this."</div>
+  </div>
+  <p><mark>The full derivations of MSE, backpropagation, and Adam are omitted here per this guidance; only the training objective actually used is stated, with a standard reference for the optimizer.</mark><span class="revised-tag">revised</span></p>
+  <div class="eq">
+    <div class="line">$$\mathcal{L}(W) = \frac{1}{N} \sum_{i=1}^{N} \Vert \hat{x}_i - x_i \Vert^2$$<span class="comment">MSE between reconstruction and clean target</span></div>
+  </div>
+  <p class="eq-source">Standard mean-squared-error training objective; the Adam optimizer used to minimize it is due to Kingma &amp; Ba <span class="cite">[5]</span>.</p>
+
+  <h3>6.3 Baseline MSE</h3>
+  <div class="prof">
+    <div class="prof-label" id="c8">Professor comment — §6.3 <span class="status justified">justified</span></div>
+    <div class="prof-text">"Explain what this is."</div>
+  </div>
+  <p><mark>Two distinct baselines are relevant, and the original draft conflated them:</mark><span class="revised-tag">revised</span></p>
+  <ul>
+    <li><mark>$\text{MSE}(0, \tau_{\text{clean}})$ — the <strong>zero-prediction</strong> baseline (predicting the all-zero vector), equal to the signal variance $\operatorname{Var}(\tau_{\text{clean}})$.</mark></li>
+    <li><mark>$\text{MSE}(\tau_{\text{noisy}}, \tau_{\text{clean}}) \approx \sigma^2$ per coordinate — the <strong>no-denoising</strong> baseline, i.e. the error you get by doing nothing at all. This is the relevant comparison for measuring what the autoencoder actually contributes, and is what <code>main.py</code> computes and prints as <code>baseline_mse</code> alongside the model's test MSE and the improvement ratio.</mark></li>
+  </ul>
+
+  <!-- SECTION 7 -->
+  <h2 id="sec7">7. Training Procedure</h2>
+
+  <div class="prof">
+    <div class="prof-label" id="c9">Professor comment — §7.1–7.3 <span class="status justified">justified</span></div>
+    <div class="prof-text">"Show loss over training in a plot. You can also try if L-BFGS can further reduce the loss."</div>
+  </div>
+  <p><mark>Training/validation loss by epoch is plotted and saved every run (<code>visualize.py: plot_training_curve</code>, saved as <code>loss_curve.png</code>). An L-BFGS full-batch optimizer is available as an alternative to Adam (<code>train.py: _train_lbfgs</code>, selected via <code>optimizer_name="lbfgs"</code>), intended as a short controlled comparison rather than a default — L-BFGS is a full-batch, second-order method with materially different convergence behavior than minibatch Adam, so results are compared on MSE, SNR, and wall-clock runtime rather than assumed to be better.</mark><span class="revised-tag">revised</span></p>
+  <p class="eq-source">L-BFGS is a quasi-Newton optimization method; see Liu &amp; Nocedal <span class="cite">[9]</span> for the algorithm as implemented in <code>train.py: _train_lbfgs</code>.</p>
+
+  <h3>7.4 Train / validation / test split</h3>
+  <div class="prof">
+    <div class="prof-label" id="c10">Professor comment — §7.4 <span class="status justified">justified</span></div>
+    <div class="prof-text">"Typically you split into train / test / validation?"</div>
+  </div>
+  <p><mark>The dataset is now split three ways rather than two: <code>TRAIN_SPLIT = 0.6</code>, <code>VAL_SPLIT = 0.2</code>, and the remaining 0.2 held out as a test set (<code>main.py</code>). The validation split drives early stopping and any hyperparameter/model selection; the test split is touched exactly once, after training is complete, to report the final MSE. This is an explicit fix for the earlier two-way train/test split, where the same held-out set was used both to pick the stopping point and to report the final number — a form of selection bias that the professor's comment specifically raised.</mark><span class="revised-tag">revised</span></p>
+  <div class="eq">
+    <div class="line">$$n_{\text{train}} = \lfloor N \times 0.6 \rfloor, \quad n_{\text{val}} = \lfloor N \times 0.2 \rfloor, \quad n_{\text{test}} = N - n_{\text{train}} - n_{\text{val}}$$</div>
+  </div>
+  <p class="eq-source">Three-way split matching this project's own <code>main.py</code> (<code>TRAIN_SPLIT</code>, <code>VAL_SPLIT</code> constants); a standard train/validation/test convention, not a single-source citation.</p>
+
+  <!-- SECTION 8 -->
+  <h2 id="sec8">8. Why Compression Can Support Denoising</h2>
+
+  <div class="prof">
+    <div class="prof-label" id="c11">Professor comment — §8 (this document) <span class="status justified">justified</span></div>
+    <div class="prof-text">"This is an interesting explanation but requires a lot more detail … What is mutual information, what is I?"</div>
+  </div>
+  <div class="prof">
+    <div class="prof-label" id="c12">Professor comment — companion run-comparison document, §2–4 <span class="status justified">justified</span></div>
+    <div class="prof-text">"This would require a reference to a suitable theorem … [and] a proper definition of d*." / "Are you talking about subspaces or manifolds? These are not the same things." / "What are signal directions?" / "What does that mean?"</div>
+  </div>
+
+  <div class="caution">
+    <div class="caution-label">On the origin of the original text</div>
+    Several claims in the original section — an explicit reconstruction-error formula in terms of an "intrinsic dimension" $d^*$, and the assertion $I(z;\, \text{noise}) \approx 0$ as if it were a proven property of this network — read like plausible-sounding generative text rather than results drawn from a specific theorem. That is a reasonable thing to happen when drafting with an LLM's help, and is consistent with guidance for AI-assisted academic writing at TUHH: AI tools may assist with structuring or phrasing, but claims presented as established results must be traceable to an actual source, and unverified or fabricated claims are not acceptable in submitted work. The revision below keeps the genuinely-supported ideas, cites where they come from, and explicitly flags what remains an informal, uncited intuition rather than a theorem.
+  </div>
+
+  <p><mark>A denoising autoencoder is not merely reproducing its input; because the training target is the <em>clean</em> trajectory while the input is <em>noisy</em>, the network is pushed to map corrupted points back toward the region where clean data actually lives. This "manifold" or "concentration of data" perspective — that training examples cluster near a lower-dimensional structure within the ambient input space, and a good representation is one robust to corruption of that input — is the perspective originally proposed by Vincent et al. <span class="cite">[1]</span><span class="cite">[2]</span>, and is the correct citation for this idea rather than an unreferenced assertion.</mark><span class="revised-tag">revised</span></p>
+
+  <p><mark>Vincent et al. <span class="cite">[2]</span> also report a controlled comparison directly relevant to why noise-corruption training matters, separately from any capacity constraint: they trained an <em>over-complete</em> autoencoder (200 hidden units, more than the input dimension) two ways — once with L2 weight-decay regularization and no noise, and once as a denoising autoencoder with isotropic Gaussian noise ($\sigma = 0.5$) and no weight decay. The two conditions produced qualitatively different learned filters: weight decay alone yielded uninformative "blob" detectors, while denoising with sufficient noise produced sharp, oriented Gabor-like edge detectors resembling receptive fields in primary visual cortex. Their conclusion was that noise-based denoising training and weight-decay regularization are not interchangeable, even though both nominally prevent a trivial identity mapping.</mark><span class="revised-tag">revised</span></p>
+
+  <p><mark>This finding is cited here as motivating context for why the noise-corruption step in this project's training procedure (<code>noise.py: add_gaussian_noise</code>, applied before every forward pass in <code>train.py</code>) is doing something distinct from capacity control alone — not as a result reproduced on trajectory data. Two concrete differences from the original experiment should be stated plainly: (1) <code>TrajectoryAE</code>'s architecture is <em>under-complete</em> (bottleneck of 16 units, narrower than the 1200-dimensional input; see §4.2), unlike the over-complete 200-unit layer Vincent et al. used to isolate the noise-only effect from any bottleneck effect — in this project's setup, compression and noise-robustness pressures act together, not in isolation; and (2) this codebase does not implement an L2-weight-decay training condition or a noise-off control run, so no equivalent "denoising vs. weight decay" comparison has actually been performed here. Running that comparison (e.g. adding <code>weight_decay</code> to the Adam optimizer in <code>train.py</code> and a <code>NOISE_SIGMA=0</code> control) would be needed before claiming this project's results confirm the same qualitative distinction for 3D trajectories.</mark><span class="revised-tag">revised</span></p>
+
+  <p><mark>Separately, the encoder must pass information through a bottleneck layer much narrower than the input (16 units vs. 1200). Bounding the bottleneck's capacity is a classical way to prevent an autoencoder from learning the trivial identity map, and is discussed as a representation-learning constraint by Bengio et al. <span class="cite">[3]</span>. Some authors additionally analyze such bottlenecks through an information-theoretic lens — the "information bottleneck" framework of Tishby and Zaslavsky <span class="cite">[6]</span>, which frames a layer's representation as trading off mutual information with the input against mutual information with the target.</mark><span class="revised-tag">revised</span></p>
+
+  <div class="caution">
+    <div class="caution-label">What is <em>not</em> claimed here</div>
+    <mark>The original draft's formula $\mathbb{E}\Vert \hat{x} - x \Vert^2 \approx \sigma^2 \cdot d^*/k + C(k)$ and the statement $I(z;\,\text{noise}) \approx 0,\ I(z;\,\text{signal}) \gg 0$ are <strong>not</strong> established results for this network. The information bottleneck framework, when applied to deep networks, is itself an active and disputed research question — Saxe et al. <span class="cite">[7]</span> directly challenge some of the empirical claims in Tishby and Zaslavsky's original account of how mutual information evolves during training. No mutual-information estimate has been computed for this model, and no citation supports the specific <code>d*/k</code> decomposition as written. This document therefore does not assert an intrinsic dimension for the trained latent space, and treats the noise-suppression explanation as a plausible, literature-consistent intuition rather than a proven property of <code>TrajectoryAE</code>.</mark><span class="revised-tag">revised</span>
+  </div>
+
+  <p><mark>What can be stated with the evidence actually available from this codebase: the clean spiral family is generated from 4 independent scalar parameters (§2.2) — a property of the <em>generator</em>, not a measured property of the trained model's latent space; and empirically, denoising performance (test MSE, SNR improvement) can be measured directly and compared across embedding sizes and noise levels via <code>bottleneck_ablation.py</code> and <code>noise_sweep.py</code>, which is the appropriate way to support any claim about how bottleneck width affects reconstruction quality for this specific dataset and architecture.</mark><span class="revised-tag">revised</span></p>
+
+  <div id="checklist">
+    <h2 style="margin-top:0;">Comment Resolution Checklist</h2>
+    <div class="checklist-summary">
+      <span><b>12</b> / 12 professor comments justified</span>
+      <span><b>0</b> open</span>
+    </div>
+    <div class="table-wrap">
+    <table class="check-table">
+      <thead><tr><th>#</th><th>Location</th><th>Comment (gist)</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td class="loc"><a href="#c1">§1.1</a></td><td>Are all trajectories the same shape with different noise?</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">2</td><td class="loc"><a href="#c2">§2.1</a></td><td>Leave the number of trajectory steps as a variable in the writeup.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">3</td><td class="loc"><a href="#c3">§3.2 (i)</a></td><td>Interpret what the noise σ value actually means.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">4</td><td class="loc"><a href="#c4">§3.2 (ii)</a></td><td>Define P_signal, P_noise, σ_clean before using SNR.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">5</td><td class="loc"><a href="#c5">§4.3</a></td><td>Try normalizing the trajectory before denoising.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">6</td><td class="loc"><a href="#c6">§4.5</a></td><td>Network is too heavy — try a leaner autoencoder.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">7</td><td class="loc"><a href="#c7">§6.1–6.2</a></td><td>MSE and Adam derivations don't need explaining, just reference them.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">8</td><td class="loc"><a href="#c8">§6.3</a></td><td>Explain what the baseline MSE actually is.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">9</td><td class="loc"><a href="#c9">§7.1–7.3</a></td><td>Plot the training loss; try L-BFGS as an alternative optimizer.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">10</td><td class="loc"><a href="#c10">§7.4</a></td><td>Use a proper train / validation / test split.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">11</td><td class="loc"><a href="#c11">§8</a></td><td>The compression/denoising explanation needs detail — define mutual information and I.</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+        <tr><td class="num">12</td><td class="loc"><a href="#c12">§8 companion</a></td><td>Needs a real theorem reference; define d*; manifold vs. subspace; define "signal directions."</td><td class="status-cell"><span class="status justified">justified</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="font-size:0.85rem;color:var(--ink-soft)">All 12 comments are addressed with either an implementation change, a corrected/cited definition, or an explicit retraction of an unsupported claim (§8) rather than a proof. No comment remains open.</p>
+  </div>
+
+  <div id="references">
+    <h2 style="margin-top:0;">References</h2>
+    <div class="ref-item">[1] Vincent, P., Larochelle, H., Bengio, Y., &amp; Manzagol, P.-A. (2008). <i>Extracting and Composing Robust Features with Denoising Autoencoders</i>. Proceedings of the 25th International Conference on Machine Learning (ICML).</div>
+    <div class="ref-item">[2] Vincent, P., Larochelle, H., Lajoie, I., Bengio, Y., &amp; Manzagol, P.-A. (2010). <i>Stacked Denoising Autoencoders: Learning Useful Representations in a Deep Network with a Local Denoising Criterion</i>. Journal of Machine Learning Research, 11, 3371–3408.</div>
+    <div class="ref-item">[3] Bengio, Y., Courville, A., &amp; Vincent, P. (2013). <i>Representation Learning: A Review and New Perspectives</i>. IEEE Transactions on Pattern Analysis and Machine Intelligence, 35(8), 1798–1828.</div>
+    <div class="ref-item">[4] Nair, V., &amp; Hinton, G. E. (2010). <i>Rectified Linear Units Improve Restricted Boltzmann Machines</i>. Proceedings of the 27th International Conference on Machine Learning (ICML).</div>
+    <div class="ref-item">[5] Kingma, D. P., &amp; Ba, J. (2015). <i>Adam: A Method for Stochastic Optimization</i>. International Conference on Learning Representations (ICLR).</div>
+    <div class="ref-item">[6] Tishby, N., &amp; Zaslavsky, N. (2015). <i>Deep Learning and the Information Bottleneck Principle</i>. IEEE Information Theory Workshop (ITW). arXiv:1503.02406.</div>
+    <div class="ref-item">[7] Saxe, A. M., Bansal, Y., Dapello, J., Advani, M., Kolchinsky, A., Tracey, B. D., &amp; Cox, D. D. (2018). <i>On the Information Bottleneck Theory of Deep Learning</i>. International Conference on Learning Representations (ICLR).</div>
+    <div class="ref-item">[8] Goodfellow, I., Bengio, Y., &amp; Courville, A. (2016). <i>Deep Learning</i>. MIT Press. (Chapter 14: Autoencoders.)</div>
+    <div class="ref-item">[9] Liu, D. C., &amp; Nocedal, J. (1989). <i>On the Limited Memory BFGS Method for Large Scale Optimization</i>. Mathematical Programming, 45(1–3), 503–528.</div>
+    <div class="ref-item">[10] Oppenheim, A. V., &amp; Schafer, R. W. (2010). <i>Discrete-Time Signal Processing</i> (3rd ed.). Prentice Hall. (Signal-to-noise ratio in decibels, standard power-ratio definition.)</div>
+  </div>
+</div>
+</body>
+</html>

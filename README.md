@@ -18,7 +18,7 @@ The project includes:
   with early stopping.
 - An evaluation and visualization suite: loss curves, reconstruction overlays,
   per-axis time series, residual plots, MSE distribution, SNR improvement,
-  PCA of the latent space, and encoder weight heatmaps.
+  and PCA of the latent space.
 - Ablation scripts sweeping the bottleneck (embedding) size and the noise
   level to characterize the capacity/noise-robustness tradeoff.
 
@@ -36,8 +36,6 @@ experimental results.
 | Numerical computing | [NumPy](https://numpy.org/) |
 | Plotting / visualization | [Matplotlib](https://matplotlib.org/) (incl. 3D axes, animation writer) |
 | Model summary | [torchinfo](https://github.com/TylerYep/torchinfo) |
-| Computation graph visualization | [torchviz](https://github.com/szagoruyko/pytorchviz) + [Graphviz](https://graphviz.org/) (system binary) |
-| Model interchange / graph inspection | [TorchScript](https://pytorch.org/docs/stable/jit.html) export (`.pt`) viewable in [Netron](https://netron.app) |
 
 No GPU is required — the project runs on CPU (`torch` CPU build). CUDA is
 used automatically if available (`main.py` selects `cuda` when
@@ -46,12 +44,6 @@ used automatically if available (`main.py` selects `cuda` when
 ## Requirements
 
 - **Python**: 3.11 (developed and tested on 3.11.9)
-- **System dependency**: [Graphviz](https://graphviz.org/download/) (the
-  `dot` binary) must be installed and on `PATH` for the `torchviz`
-  computation-graph export in `main.py` to work. On Windows,
-  `winget install Graphviz.Graphviz` installs it to
-  `C:\Program Files\Graphviz\bin` (main.py adds this path automatically as a
-  fallback if it isn't already on `PATH`).
 - **Python packages**: see [`requirements.txt`](requirements.txt).
 
 ### Setup

@@ -1,0 +1,31 @@
+Hyperparameters
+---------------
+N_TRAJECTORIES : 300
+T              : 400
+NOISE_SIGMA    : 1.0
+EMBEDDING_SIZE : 16
+HIDDEN_DIMS    : (128, 64, 32)
+EPOCHS         : 100
+BATCH_SIZE     : 32
+LR             : 0.001
+SEED           : 50
+NORMALIZE      : True
+
+Split sizes
+-----------
+train : 180
+val   : 60
+test  : 60
+
+Test results
+------------
+Test MSE               : 0.038586
+No-denoising baseline MSE: 1.007434
+Improvement over baseline: 26.11x
+
+Per-trajectory stats
+--------------------
+Best  traj : idx=55, MSE=0.003919
+Worst traj : idx=10, MSE=0.155554
+Mean MSE   : 0.038586
+Std MSE    : 0.029497

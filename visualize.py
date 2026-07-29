@@ -87,7 +87,7 @@ def plot_residuals(clean, reconstructed):
     return axes
 
 
-def plot_latent_space_pca(embeddings, color_by=None, color_label=None):
+def plot_latent_space_pca(embeddings, color_by=None, color_label=None, split_name='test'):
     """Reduce latent embeddings to 2D via PCA and scatter, optionally colored
     by a trajectory parameter (e.g. radius or rise rate).
 
@@ -95,6 +95,8 @@ def plot_latent_space_pca(embeddings, color_by=None, color_label=None):
         embeddings: np.ndarray (N, embedding_size).
         color_by: optional np.ndarray (N,) of values to color points by.
         color_label: label for the colorbar, if color_by is given.
+        split_name: which data split these embeddings come from (e.g. 'test',
+            'train', 'val'), shown in the title.
 
     Returns:
         the Axes used.
@@ -114,7 +116,42 @@ def plot_latent_space_pca(embeddings, color_by=None, color_label=None):
         ax.scatter(proj[:, 0], proj[:, 1], color=COLOR_CLEAN, s=10, alpha=0.8)
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
-    ax.set_title('Latent space (PCA projection)')
+    ax.set_title(f'Latent space (PCA projection) — {split_name} split, N={embeddings.shape[0]} trajectories')
+    return ax
+
+
+def plot_latent_space_pca_overlay(train_embeddings, test_embeddings):
+    """Overlay train and test latent embeddings on one PCA projection, for
+    spotting a generalization gap during development (e.g. test points
+    clustering separately from train points, or scattering more widely).
+
+    Both splits are projected onto components fit jointly on the combined
+    embeddings, so a single pair of axes is a fair shared basis for both.
+
+    Args:
+        train_embeddings: np.ndarray (N_train, embedding_size).
+        test_embeddings: np.ndarray (N_test, embedding_size).
+
+    Returns:
+        the Axes used.
+    """
+    combined = np.concatenate([train_embeddings, test_embeddings], axis=0)
+    centered = combined - combined.mean(axis=0, keepdims=True)
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    proj = centered @ vt[:2].T
+
+    n_train = train_embeddings.shape[0]
+    proj_train, proj_test = proj[:n_train], proj[n_train:]
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    ax.scatter(proj_train[:, 0], proj_train[:, 1], color=COLOR_CLEAN, s=10,
+               alpha=0.6, label=f'train (N={n_train})')
+    ax.scatter(proj_test[:, 0], proj_test[:, 1], color=COLOR_NOISY, s=14,
+               alpha=0.8, marker='^', label=f'test (N={test_embeddings.shape[0]})')
+    ax.set_xlabel('PC1')
+    ax.set_ylabel('PC2')
+    ax.set_title('Latent space (PCA projection) — train vs test overlay')
+    ax.legend()
     return ax
 
 
@@ -142,7 +179,7 @@ def plot_mse_histogram(clean, reconstructed):
     return ax
 
 
-def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0):
+def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0, highlight_idx=None):
     """Bar chart comparing per-sample SNR before (noisy) vs after (reconstructed)
     denoising, for a random subset of trajectories.
 
@@ -151,6 +188,10 @@ def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0):
 
     Args:
         clean, noisy, reconstructed: np.ndarray (N, T, 3) or (N, T*3).
+        highlight_idx: optional trajectory index (e.g. the worst-case test
+            trajectory) to force into the sampled set and mark distinctly,
+            so it is guaranteed visible even if the random sample would
+            otherwise have missed it.
 
     Returns:
         the Axes used.
@@ -161,7 +202,11 @@ def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0):
 
     n = clean.shape[0]
     rng = np.random.default_rng(seed)
-    idx = rng.choice(n, size=min(n_samples, n), replace=False)
+    sample_size = min(n_samples, n) - (1 if highlight_idx is not None else 0)
+    pool = np.delete(np.arange(n), highlight_idx) if highlight_idx is not None else np.arange(n)
+    idx = rng.choice(pool, size=min(sample_size, len(pool)), replace=False)
+    if highlight_idx is not None:
+        idx = np.append(idx, highlight_idx)
     idx.sort()
 
     signal_power = (clean[idx] ** 2).mean(axis=1)
@@ -174,38 +219,25 @@ def plot_snr_improvement(clean, noisy, reconstructed, n_samples=30, seed=0):
     x = np.arange(len(idx))
     width = 0.38
     fig, ax = plt.subplots(figsize=(11, 5))
-    ax.bar(x - width / 2, snr_before, width, label='before (noisy)', color=COLOR_NOISY)
-    ax.bar(x + width / 2, snr_after, width, label='after (reconstructed)', color=COLOR_RECON)
-    ax.set_xlabel('sample')
+    before_colors = [COLOR_NOISY] * len(idx)
+    after_colors = [COLOR_RECON] * len(idx)
+    edge_colors_before = ["none"] * len(idx)
+    edge_colors_after = ["none"] * len(idx)
+    if highlight_idx is not None:
+        pos = int(np.where(idx == highlight_idx)[0][0])
+        edge_colors_before[pos] = "black"
+        edge_colors_after[pos] = "black"
+    ax.bar(x - width / 2, snr_before, width, label='before (noisy)', color=before_colors,
+           edgecolor=edge_colors_before, linewidth=2)
+    ax.bar(x + width / 2, snr_after, width, label='after (reconstructed)', color=after_colors,
+           edgecolor=edge_colors_after, linewidth=2)
+    tick_labels = [f"{i}*" if i == highlight_idx else str(i) for i in idx]
+    ax.set_xticks(x)
+    ax.set_xticklabels(tick_labels, fontsize=7, rotation=90)
+    ax.set_xlabel('test trajectory index' + ('  (* = worst-case, outlined)' if highlight_idx is not None else ''))
     ax.set_ylabel('SNR (dB)')
     ax.set_title('SNR improvement from denoising')
     ax.legend()
-    return ax
-
-
-def plot_encoder_weight_heatmap(model):
-    """Visualize the first encoder layer's weights as a heatmap.
-
-    Rows are hidden units, columns are flattened (timestep * 3) input
-    features; reshaping the column axis into (T, 3) blocks shows which
-    timesteps/axes each hidden unit attends to most.
-
-    Args:
-        model: TrajectoryAE instance.
-
-    Returns:
-        the Axes used.
-    """
-    first_linear = model.encoder[0]
-    weights = first_linear.weight.detach().cpu().numpy()  # (hidden, T*3)
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    vmax = np.abs(weights).max()
-    im = ax.imshow(weights, aspect='auto', cmap='RdBu_r', vmin=-vmax, vmax=vmax)
-    ax.set_xlabel('input feature (timestep * 3 + axis)')
-    ax.set_ylabel('hidden unit')
-    ax.set_title('Encoder first-layer weights')
-    fig.colorbar(im, ax=ax, label='weight')
     return ax
 
 
@@ -253,41 +285,68 @@ def plot_training_curve(train_losses, test_losses=None):
     return ax
 
 
-def plot_noise_sweep(sigmas, test_mses):
+def plot_noise_sweep(sigmas, test_mses, yerr=None, breakdown_sigma=None):
     """Plot test MSE vs noise level (sigma), characterizing model robustness.
 
     Args:
         sigmas: sequence of NOISE_SIGMA values used.
-        test_mses: sequence of final test MSE for each sigma (same order).
+        test_mses: sequence of (mean) final test MSE for each sigma (same order).
+        yerr: optional sequence of std devs across seeds, for error bars.
+        breakdown_sigma: optional sigma value; the plot region from this sigma
+            to the end is shaded red and labeled as where reconstruction
+            error grows sharply, to flag the point beyond which denoising
+            quality degrades fastest.
 
     Returns:
         the Axes used.
     """
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(sigmas, test_mses, marker='o', color=COLOR_CLEAN, lw=2)
-    ax.set_xlabel('noise sigma')
-    ax.set_ylabel('final test MSE')
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    err_label = 'std across seeds (3 models trained per sigma)' if yerr is not None else None
+    ax.errorbar(sigmas, test_mses, marker='o', color=COLOR_CLEAN, lw=2, markersize=7,
+                label='mean test MSE (blue line = model reconstruction error)')
+    if yerr is not None:
+        ax.errorbar(sigmas, test_mses, yerr=yerr, fmt='none', ecolor=COLOR_NOISY,
+                     capsize=4, elinewidth=1.5, label=err_label)
+
+    if breakdown_sigma is not None and breakdown_sigma in sigmas:
+        idx = sigmas.index(breakdown_sigma)
+        ax.axvspan(sigmas[idx], sigmas[-1], color='red', alpha=0.08, zorder=0)
+        ax.axvline(sigmas[idx], color='red', linestyle=':', lw=1.5)
+        ax.annotate('sharp degradation\nbeyond this point',
+                     xy=(sigmas[idx], test_mses[idx]), xytext=(0, 30),
+                     textcoords='offset points', ha='center', color='red',
+                     fontsize=9, arrowprops=dict(arrowstyle='->', color='red'))
+
+    ax.set_xlabel('noise sigma (input noise std dev)')
+    ax.set_ylabel('final test MSE' + (' (mean +/- std over seeds)' if yerr is not None else ''))
     ax.set_title('Reconstruction error vs noise level')
+    ax.legend(loc='upper left', fontsize=8)
     return ax
 
 
-def plot_bottleneck_ablation(embedding_sizes, test_mses):
+def _unused():
+    pass
+
+
+def plot_bottleneck_ablation(embedding_sizes, test_mses, yerr=None):
     """Plot test MSE vs embedding (bottleneck) size, showing the
     compression-quality tradeoff.
 
     Args:
         embedding_sizes: sequence of EMBEDDING_SIZE values used.
-        test_mses: sequence of final test MSE for each size (same order).
+        test_mses: sequence of (mean) final test MSE for each size (same order).
+        yerr: optional sequence of std devs across seeds, for error bars.
 
     Returns:
         the Axes used.
     """
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(embedding_sizes, test_mses, marker='o', color=COLOR_RECON, lw=2)
+    ax.errorbar(embedding_sizes, test_mses, yerr=yerr, marker='o', color=COLOR_RECON, lw=2,
+                capsize=4, ecolor=COLOR_NOISY)
     ax.set_xscale('log', base=2)
     ax.set_xticks(embedding_sizes)
     ax.get_xaxis().set_major_formatter(plt.ScalarFormatter())
     ax.set_xlabel('embedding size')
-    ax.set_ylabel('final test MSE')
+    ax.set_ylabel('final test MSE' + (' (mean +/- std over seeds)' if yerr is not None else ''))
     ax.set_title('Reconstruction error vs bottleneck size')
     return ax
